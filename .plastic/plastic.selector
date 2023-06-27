@@ -1,0 +1,4 @@
+repository "TargetKayromSCM@HEMANTH2410@cloud"
+  path "/"
+    br "/main"
+    co "/main"
