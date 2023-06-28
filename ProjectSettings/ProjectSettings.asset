@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
+  companyName: QuietSnipo
   productName: TargetKayromSCM
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -154,8 +154,8 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Android: com.DefaultCompany.TargetKayromSCM
-    Standalone: com.DefaultCompany.TargetKayromSCM
+    Android: com.QuietSnipo.TargetKayromSCM
+    Standalone: com.QuietSnipo.TargetKayromSCM
   buildNumber:
     Bratwurst: 0
     Standalone: 0
