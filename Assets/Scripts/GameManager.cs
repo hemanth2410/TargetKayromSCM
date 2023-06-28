@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     [Space]
     public List<GameObject> CarromCoins;
     public Transform BoardBoundary;
-
+    public LayerMask ignoreLayers;
     [Space]
     [Header("Debug Only")]
     public bool SimulatedPhysics = false;
@@ -37,6 +37,7 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        Application.targetFrameRate = 60;
         striker = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
         strikerTransfrom = striker.transform;
 
@@ -70,7 +71,7 @@ public class GameManager : MonoBehaviour
         Vector3 currentMousePos = Input.mousePosition;
         RaycastHit hit;
         var clickRay = Camera.main.ScreenPointToRay(Input.mousePosition);
-        Physics.Raycast(clickRay, out hit, 50f);
+        Physics.Raycast(clickRay, out hit, 50f/*, ignoreLayers*/);
 
         if (Input.GetMouseButton(0) && !touchIsDragging)
         {
@@ -105,6 +106,8 @@ public class GameManager : MonoBehaviour
                 ShotRenderer.SetPosition(i, ghostStriker.transform.position);
 
             }
+            ShotRenderer.SetPosition(0, striker.transform.position);
+
 
             if (Input.GetMouseButtonUp(0))
             {
