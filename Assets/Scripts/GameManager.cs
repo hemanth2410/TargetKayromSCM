@@ -13,10 +13,10 @@ public class GameManager : MonoBehaviour
     public List<GameObject> CarromCoins;
     public Transform BoardBoundary;
     public LayerMask ignoreLayers;
+    public Vector3 StrikerForceDirection { get { return strikerForceDirection; } }
     [Space]
     [Header("Debug Only")]
     public bool SimulatedPhysics = false;
-
     GameObject striker;
     Transform strikerTransfrom;
     GameObject ghostStriker;
@@ -33,10 +33,12 @@ public class GameManager : MonoBehaviour
 
     List<GameObject> ghosts = new List<GameObject>();
     List<Vector3> ghostsPreSimPos = new List<Vector3>();
+    Vector3 strikerForceDirection;
 
     // Start is called before the first frame update
     void Start()
     {
+        GameController.Instance.RegisterGameManager(this);
         Application.targetFrameRate = 60;
         striker = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
         strikerTransfrom = striker.transform;
@@ -91,14 +93,15 @@ public class GameManager : MonoBehaviour
             var hitPoint = hit.point;
             Debug.DrawLine(strikerTransfrom.position, hitPoint);
             hitPoint.y = 0;
+            strikerForceDirection = dragStartPos - hitPoint;
             for (int i = 0; i < CarromCoins.Count; i++)
             {
                 ghosts[i].transform.position = CarromCoins[i].transform.position;
             }
-
+            GameController.Instance.RuleEvaluator.EvaluateRules();
             ghostStriker.transform.position = striker.transform.position;
             ghostStriker.GetComponent<Rigidbody>().velocity = Vector3.zero;
-            ghostStriker.GetComponent<Rigidbody>().AddForce((dragStartPos - hitPoint) * StrikeForceMultiplier, ForceMode.Impulse);
+            ghostStriker.GetComponent<Rigidbody>().AddForce((strikerForceDirection) * StrikeForceMultiplier, ForceMode.Impulse);
             ShotRenderer.positionCount = MaxSimulatedFrames;
             for (int i = 0; i < MaxSimulatedFrames; i++)
             {
