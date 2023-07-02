@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,16 +11,17 @@ public class GameManager : MonoBehaviour
 
     public int MaxSimulatedFrames = 600;
     [Space]
-    public List<GameObject> CarromCoins;
-    public Transform BoardBoundary;
+    List<GameObject> carromCoins;
+    public Transform[] StaticPhysicsObjects;
     public LayerMask ignoreLayers;
     public Vector3 StrikerForceDirection { get { return strikerForceDirection; } }
     [Space]
     [Header("Debug Only")]
-    public bool SimulatedPhysics = false;
     GameObject striker;
     Transform strikerTransfrom;
     GameObject ghostStriker;
+    GameObject queen;
+
 
     bool touchIsDragging;
     Vector3 dragStartPos;
@@ -28,10 +30,8 @@ public class GameManager : MonoBehaviour
     Scene simulationScene;
     PhysicsScene physicsSimulationScene;
 
-    Dictionary<GameObject, Vector3> CoinPositions = new Dictionary<GameObject, Vector3>();
-    Dictionary<GameObject, Vector3> GhostCoinPositions = new Dictionary<GameObject, Vector3>();
 
-    List<GameObject> ghosts = new List<GameObject>();
+    List<GameObject> ghostCoins = new List<GameObject>();
     List<Vector3> ghostsPreSimPos = new List<Vector3>();
     Vector3 strikerForceDirection;
 
@@ -43,26 +43,53 @@ public class GameManager : MonoBehaviour
         striker = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
         strikerTransfrom = striker.transform;
 
+        queen = GameObject.FindGameObjectWithTag(Constants.Tag_Queen);
+
         simulationScene = SceneManager.CreateScene("SimulatedBoard", new CreateSceneParameters(LocalPhysicsMode.Physics3D));
         physicsSimulationScene = simulationScene.GetPhysicsScene();
 
-        var ghostBoundary = Instantiate(BoardBoundary.gameObject, BoardBoundary.position, BoardBoundary.rotation);
-        ghostBoundary.GetComponent<Renderer>().enabled = false;
-        SceneManager.MoveGameObjectToScene(ghostBoundary, simulationScene);
 
-        for (int i = 0; i < CarromCoins.Count; i++)
+        //Find and add all coins on board into the list
+        carromCoins = new List<GameObject>();
+        carromCoins.Add(striker);
+
+        var faction1coins = GameObject.FindGameObjectsWithTag(Constants.Tag_Faction1);
+        var faction2coins = GameObject.FindGameObjectsWithTag(Constants.Tag_Faction2);
+
+        carromCoins.AddRange(faction1coins);
+        carromCoins.AddRange(faction2coins);
+
+        carromCoins.Add(queen);
+
+        foreach (Transform GO in StaticPhysicsObjects)
         {
-            var coinGO = CarromCoins[i];
-            CoinPositions.Add(coinGO, coinGO.transform.position);
+            var go = Instantiate(GO.gameObject, GO.position, GO.rotation);
+            SceneManager.MoveGameObjectToScene(go, simulationScene);
+
+            try
+            {
+                go.GetComponent<Renderer>().enabled = false;
+            }
+            catch (Exception e)
+            {
+                continue;
+            }
+        }
+
+
+
+        //Create ghost objects for physics simulation
+        for (int i = 0; i < carromCoins.Count; i++)
+        {
+            var coinGO = carromCoins[i];
 
             var ghostGameObject = Instantiate(coinGO, coinGO.transform.position, coinGO.transform.rotation);
 
             if (ghostGameObject.tag == Constants.Tag_Striker) ghostStriker = ghostGameObject;
             ghostGameObject.GetComponent<Renderer>().enabled = false;
             SceneManager.MoveGameObjectToScene(ghostGameObject, simulationScene);
-            ghosts.Add(ghostGameObject);
+            ghostCoins.Add(ghostGameObject);
             ghostsPreSimPos.Add(ghostGameObject.transform.position);
-            GhostCoinPositions.Add(ghostGameObject, ghostGameObject.transform.position);
         }
 
     }
@@ -77,7 +104,7 @@ public class GameManager : MonoBehaviour
 
         //Get viewport point to calculate for camera delta
         var clickViewport = Camera.main.ScreenToViewportPoint(Input.mousePosition);
-        
+
 
         if (Input.GetMouseButton(0) && !touchIsDragging)
         {
@@ -98,9 +125,9 @@ public class GameManager : MonoBehaviour
             Debug.DrawLine(strikerTransfrom.position, hitPoint);
             hitPoint.y = 0;
             strikerForceDirection = dragStartPos - hitPoint;
-            for (int i = 0; i < CarromCoins.Count; i++)
+            for (int i = 0; i < carromCoins.Count; i++)
             {
-                ghosts[i].transform.position = CarromCoins[i].transform.position;
+                ghostCoins[i].transform.position = carromCoins[i].transform.position;
             }
             GameController.Instance.RuleEvaluator.EvaluateRules();
             ghostStriker.transform.position = striker.transform.position;
@@ -124,23 +151,9 @@ public class GameManager : MonoBehaviour
 
                 ShotRenderer.positionCount = 0;
 
-                if (SimulatedPhysics)
-                {
 
-                    //    ghostStriker.GetComponent<Rigidbody>().AddForce((dragStartPos - dragEndPos) * StrikeForceMultiplier, ForceMode.Impulse);
-                    //    ShotRenderer.positionCount = MaxSimulatedFrames;
-                    //    for (int i = 0; i < MaxSimulatedFrames; i++)
-                    //    {
-                    //        Physics.Simulate(Time.fixedDeltaTime);
-                    //        ShotRenderer.SetPosition(i, strikerTransfrom.position);
+                strikerTransfrom.GetComponent<Rigidbody>().AddForce((dragStartPos - dragEndPos) * StrikeForceMultiplier, ForceMode.Impulse);
 
-                    //    }
-                }
-                else
-                {
-
-                    strikerTransfrom.GetComponent<Rigidbody>().AddForce((dragStartPos - dragEndPos) * StrikeForceMultiplier, ForceMode.Impulse);
-                }
                 ShotRenderer.enabled = false;
             }
             dragStartPos.y = hitPoint.y = strikerTransfrom.position.y;
@@ -151,5 +164,19 @@ public class GameManager : MonoBehaviour
 
         }
 
+    }
+
+
+    //Called from Goal post to indicate which faction coin has been pucked
+    public void CoinPucked(GameObject coin)
+    {
+        var index = carromCoins.IndexOf(coin);
+
+        carromCoins.Remove(coin);
+        Destroy(coin);
+
+        var ghost = ghostCoins[index];
+        ghostCoins.Remove(ghost);
+        Destroy(ghost);
     }
 }
