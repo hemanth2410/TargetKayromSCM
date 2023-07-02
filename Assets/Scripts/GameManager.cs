@@ -75,6 +75,10 @@ public class GameManager : MonoBehaviour
         var clickRay = Camera.main.ScreenPointToRay(Input.mousePosition);
         Physics.Raycast(clickRay, out hit, 50f/*, ignoreLayers*/);
 
+        //Get viewport point to calculate for camera delta
+        var clickViewport = Camera.main.ScreenToViewportPoint(Input.mousePosition);
+        
+
         if (Input.GetMouseButton(0) && !touchIsDragging)
         {
 
