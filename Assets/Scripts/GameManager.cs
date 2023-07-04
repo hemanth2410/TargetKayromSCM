@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -12,6 +13,8 @@ public class GameManager : MonoBehaviour
     public int MaxSimulatedFrames = 600;
     [Space]
     List<GameObject> carromCoins;
+    List<Vector3> preShotPos = new List<Vector3>();                   //save pre shot positions of coins
+    List<Rigidbody> coinRigs = new List<Rigidbody>();
     public Transform[] StaticPhysicsObjects;
     public LayerMask ignoreLayers;
     public Vector3 StrikerForceDirection { get { return strikerForceDirection; } }
@@ -41,6 +44,8 @@ public class GameManager : MonoBehaviour
 
     bool isShotPlaying;
     PostShotRuleEvaluator ruleEvaluator;
+    List<GameObject> puckedCoins = new List<GameObject>();
+    List<GameObject> puckedGhosts = new List<GameObject>();
     // Start is called before the first frame update
     void Start()
     {
@@ -85,14 +90,19 @@ public class GameManager : MonoBehaviour
 
 
 
-        //Create ghost objects for physics simulation
+        //Create ghost objects for physics simulation, add rigidbodies to collection
         for (int i = 0; i < carromCoins.Count; i++)
         {
             var coinGO = carromCoins[i];
+            coinRigs.Add(coinGO.GetComponent<Rigidbody>());
 
             var ghostGameObject = Instantiate(coinGO, coinGO.transform.position, coinGO.transform.rotation);
-
-            if (ghostGameObject.tag == Constants.Tag_Striker) { ghostStriker = ghostGameObject; Destroy(ghostStriker.GetComponent<StrikerController>()); }
+            ghostGameObject.GetComponent<Coin>().enabled = false;
+            if (ghostGameObject.tag == Constants.Tag_Striker)
+            {
+                ghostStriker = ghostGameObject;
+                Destroy(ghostStriker.GetComponent<StrikerController>());
+            }
             ghostGameObject.GetComponent<Renderer>().enabled = false;
             SceneManager.MoveGameObjectToScene(ghostGameObject, simulationScene);
             ghostCoins.Add(ghostGameObject);
@@ -109,7 +119,7 @@ public class GameManager : MonoBehaviour
         ruleEvaluator.SetFaction(CoinType.Faction1);
         if (isShotPlaying)
         {
-            if (strikerRig.velocity.magnitude < 0.01f)
+            if (coinRigs.All(x => (x.velocity.magnitude <= 0.01f || !x.gameObject.activeSelf)))
             {
                 evaluateShot();
                 Debug.Log("Shot complete. Evaluating...");
@@ -130,7 +140,7 @@ public class GameManager : MonoBehaviour
         if (Input.GetMouseButton(0) && !touchIsDragging)
         {
 
-            if (hit.collider.gameObject == striker)
+            if (hit.collider.gameObject == striker && !isShotPlaying)
             {
                 dragStartPos = strikerTransfrom.position;
                 dragStartPos.y = 0;
@@ -177,7 +187,14 @@ public class GameManager : MonoBehaviour
                 strikerTransfrom.GetComponent<Rigidbody>().AddForce((dragStartPos - dragEndPos) * StrikeForceMultiplier, ForceMode.Impulse);
 
                 ShotRenderer.enabled = false;
+                for (int i = 0; i < carromCoins.Count; i++)
+                {
+                    preShotPos.Add(carromCoins[i].transform.position);
+                }
+
             }
+
+
             dragStartPos.y = hitPoint.y = strikerTransfrom.position.y;
             ShotRenderer.transform.position = dragStartPos;
             var shotDir = dragStartPos - hitPoint;
@@ -190,7 +207,53 @@ public class GameManager : MonoBehaviour
 
     void evaluateShot()
     {
-        Debug.Log(ruleEvaluator.EvaluateEvents());
+        var eval = ruleEvaluator.EvaluateEvents();
+        //item 1 = score
+        //item 2 = change turn
+        if (eval.Item1 == true)
+        {
+            foreach (GameObject coin in puckedCoins)
+            {
+                carromCoins.IndexOf(coin);
+                carromCoins.Remove(coin);
+                Destroy(coin);
+            }
+            foreach (GameObject ghost in puckedGhosts)
+            {
+                carromCoins.Remove(ghost);
+                Destroy(ghost);
+            }
+
+            preShotPos.Clear();
+        }
+        else
+        {
+            foreach (GameObject coin in puckedCoins)
+            {
+                coin.SetActive(true);
+            }
+            foreach (GameObject ghost in puckedGhosts)
+            {
+                ghost.SetActive(true);
+            }
+
+            revertBoard();
+
+        }
+
+        puckedCoins.Clear();
+        puckedGhosts.Clear();
+
+    }
+
+    private void revertBoard()
+    {
+
+        for (int i = 0; i < carromCoins.Count; i++)
+        {
+            carromCoins[i].transform.position = preShotPos[i];
+        }
+
     }
 
 
@@ -198,15 +261,21 @@ public class GameManager : MonoBehaviour
     //Called from Goal post to indicate which faction coin has been pucked
     public void CoinPucked(GameObject coin)
     {
-        var index = carromCoins.IndexOf(coin);
+        if (!isShotPlaying) return;
 
-        carromCoins.Remove(coin);
+
+        var index = carromCoins.IndexOf(coin);
+        coinRigs[index].velocity = Vector3.zero;
         coin.SetActive(false);
+        puckedCoins.Add(coin);
+        //carromCoins.Remove(coin);
         //Destroy(coin);
 
         var ghost = ghostCoins[index];
-        ghostCoins.Remove(ghost);
-        //Destroy(ghost);
         ghost.SetActive(false);
+        puckedGhosts.Add(ghost);
+
+        //ghostCoins.Remove(ghost);
+        //Destroy(ghost);
     }
 }
