@@ -122,7 +122,11 @@ public class PostShotRuleEvaluator : MonoBehaviour
                 }
             }
         }
+        shotsDict.Clear();
+
         return (score,turn);
+
+
     }
 
 

@@ -17,7 +17,10 @@ public class GameManager : MonoBehaviour
     public Vector3 StrikerForceDirection { get { return strikerForceDirection; } }
     [Space]
     [Header("Debug Only")]
+
+    //Get private references to striker and other coins
     GameObject striker;
+    Rigidbody strikerRig;
     Transform strikerTransfrom;
     GameObject ghostStriker;
     GameObject queen;
@@ -35,12 +38,16 @@ public class GameManager : MonoBehaviour
     List<Vector3> ghostsPreSimPos = new List<Vector3>();
     Vector3 strikerForceDirection;
 
+
+    bool isShotPlaying;
+    PostShotRuleEvaluator ruleEvaluator;
     // Start is called before the first frame update
     void Start()
     {
         GameController.Instance.RegisterGameManager(this);
         Application.targetFrameRate = 60;
         striker = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
+        strikerRig = striker.GetComponent<Rigidbody>();
         strikerTransfrom = striker.transform;
 
         queen = GameObject.FindGameObjectWithTag(Constants.Tag_Queen);
@@ -92,11 +99,25 @@ public class GameManager : MonoBehaviour
             ghostsPreSimPos.Add(ghostGameObject.transform.position);
         }
 
+
+        ruleEvaluator = GetComponent<PostShotRuleEvaluator>();
     }
 
     // Update is called once per frame
     void Update()
     {
+        ruleEvaluator.SetFaction(CoinType.Faction1);
+        if (isShotPlaying)
+        {
+            if (strikerRig.velocity.magnitude < 0.01f)
+            {
+                evaluateShot();
+                Debug.Log("Shot complete. Evaluating...");
+                isShotPlaying = false;
+            }
+
+        }
+
         Vector3 currentMousePos = Input.mousePosition;
         RaycastHit hit;
         var clickRay = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -142,12 +163,13 @@ public class GameManager : MonoBehaviour
             }
             ShotRenderer.SetPosition(0, striker.transform.position);
 
-
+            //Strike the striker when we release
             if (Input.GetMouseButtonUp(0))
             {
                 dragEndPos = hit.point;
                 dragEndPos.y = 0;
                 touchIsDragging = false;
+                isShotPlaying = true;
 
                 ShotRenderer.positionCount = 0;
 
@@ -165,6 +187,12 @@ public class GameManager : MonoBehaviour
         }
 
     }
+
+    void evaluateShot()
+    {
+        Debug.Log(ruleEvaluator.EvaluateEvents());
+    }
+
 
 
     //Called from Goal post to indicate which faction coin has been pucked
