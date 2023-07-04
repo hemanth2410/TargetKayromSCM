@@ -7,7 +7,7 @@ public class PostShotRuleEvaluator : MonoBehaviour
     List<ShotReport> shots;
     CoinType currentFaction;
     Dictionary<GameObject, List<ShotReport>> shotsDict = new Dictionary<GameObject, List<ShotReport>>();
-
+    [SerializeField] bool overrideTurn;
     private void Start()
     {
         GameController.Instance.RegisterPostShotEvaluator(this);
@@ -58,83 +58,101 @@ public class PostShotRuleEvaluator : MonoBehaviour
     public (bool,bool) EvaluateEvents()
     {
         bool score = true;
-        bool turn = true;
-        foreach(KeyValuePair<GameObject, List<ShotReport>>  kvp in shotsDict)
+        bool retainTurn = true;
+        if(shotsDict.Count == 0)
         {
-            // Check if striker collided with other faction? If yes, Then make it instantly illegal
-            if(kvp.Key.GetComponent<Coin>())
+            score = false;
+            retainTurn = false;
+        }
+        else
+        {
+            foreach (KeyValuePair<GameObject, List<ShotReport>> kvp in shotsDict)
             {
-                if(kvp.Key.GetComponent<Coin>().CoinType == CoinType.Striker)
+                // Check if striker collided with other faction? If yes, Then make it instantly illegal
+                if (kvp.Key.GetComponent<Coin>())
                 {
-                    // Now look for first coin typeObject.
-                    foreach(ShotReport shot in kvp.Value)
+                    if (kvp.Key.GetComponent<Coin>().CoinType == CoinType.Striker)
                     {
-                        if(shot.CollidedWith.GetComponent<Coin>())
+                        // Now look for first coin typeObject.
+                        foreach (ShotReport shot in kvp.Value)
                         {
-                            if (shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction) //Legal move
+                            if (shot.CollidedWith.GetComponent<Coin>())
+                            {
+                                if (shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction) //Legal move
+                                {
+                                    score = false;
+                                    retainTurn = false;
+                                }
+
+                                if (shot.CollidedWith.GetComponent<Coin>().CoinType != currentFaction && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Queen) // Illegal move
+                                {
+                                    score &= false;
+                                    retainTurn &= true;
+                                    overrideTurn = true;
+                                    // trigger reset
+                                }
+                                else
+                                    continue;
+                            }
+
+                        }
+                    }
+                }
+                // Check if Coin of same faction went in? If yes, then make it legal
+                // Check if queen went into goal post when score is not maximum? If yes, Then make it instantly illegal
+                // Check if coin is in baulk like and went into goal post? If yes, Make it instantly illegal
+                // Check if striker went in directly? If yes, Make it instantly illegal
+                if (kvp.Key.GetComponent<Goal>())
+                {
+                    foreach (ShotReport shot in kvp.Value)
+                    {
+                        if (shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Striker)
+                        {
+                            // check if coin is already inside the baulk like before hitting it into goal
+                            // check if coin is of same faction type when going into goal post
+                            ShotReport _finalReport = shotsDict[shot.CollidedWith].Last();
+                            if (_finalReport.BaulkTrigger)
+                            {
+                                score &= false;
+                                retainTurn &= true;
+                                overrideTurn = true;
+                                // this should trigger reset
+                            }
+                            else if (shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction)
                             {
                                 score = true;
+                                retainTurn = true;
+                                overrideTurn = true;
+                                // Perfectly legal move turn + score.
                             }
-
-                            else if (shot.CollidedWith.GetComponent<Coin>().CoinType != currentFaction && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Queen) // Illegal move
+                            else if (shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Queen) // we need a score manager for check
                             {
-                                score = false;
-                                turn = true;
-                                // trigger reset
+                                score &= true;
+                                retainTurn &= false;
+                                overrideTurn = true;
+                                // triggers the end of the game
                             }
-                            else
-                                continue;
                         }
-                        
-                    }
-                }
-            }
-            // Check if Coin of same faction went in? If yes, then make it legal
-            // Check if queen went into goal post when score is not maximum? If yes, Then make it instantly illegal
-            // Check if coin is in baulk like and went into goal post? If yes, Make it instantly illegal
-            // Check if striker went in directly? If yes, Make it instantly illegal
-            if (kvp.Key.GetComponent<Goal>())
-            {
-                foreach(ShotReport shot in kvp.Value)
-                {
-                    if(shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Striker)
-                    {
-                        // check if coin is already inside the baulk like before hitting it into goal
-                        // check if coin is of same faction type when going into goal post
-                        ShotReport _finalReport = shotsDict[shot.CollidedWith].Last();
-                        if(_finalReport.BaulkTrigger)
+                        if (shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Striker)
                         {
                             score &= false;
-                            turn &= true;
-                            // this should trigger reset
+                            retainTurn &= false;
+                            overrideTurn = true;
+                            // No score, no turn
                         }
-                        else if(shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction)
-                        {
-                            score &= true;
-                            turn &= true;
-                            // Perfectly legal move turn + score.
-                        }
-                        else if(shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Queen) // we need a score manager for check
-                        {
-                            score &= true;
-                            turn &= false;
-                            // triggers the end of the game
-                        }
-                    }
-                    if (shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Striker)
-                    {
-                        score &= false;
-                        turn &= false;
-                        // No score, no turn
                     }
                 }
             }
+            if (!overrideTurn)
+            {
+                score = false;
+                retainTurn = false;
+            }
         }
+
+        overrideTurn = false;
         shotsDict.Clear();
-
-        return (score,turn);
-
-
+        return (score,retainTurn);
     }
 
 
