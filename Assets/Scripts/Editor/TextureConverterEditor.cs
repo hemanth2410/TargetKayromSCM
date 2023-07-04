@@ -4,7 +4,6 @@ using UnityEditor;
 using UnityEngine;
 using System.IO;
 using System;
-using MacFsWatcher;
 
 public class TextureConverterEditor : EditorWindow
 {

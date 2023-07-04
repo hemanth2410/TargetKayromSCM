@@ -19,7 +19,7 @@ GameObject:
   - component: {fileID: 6279076099187456936}
   m_Layer: 0
   m_Name: Faction 1 Man
-  m_TagString: Untagged
+  m_TagString: Faction 1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

@@ -5,10 +5,12 @@ using UnityEngine;
 public class Goal : MonoBehaviour
 {
     List<GameObject> coins = new List<GameObject>();
+
+    GameManager gameManager;    
     // Start is called before the first frame update
     void Start()
     {
-        
+        gameManager = GameObject.FindGameObjectWithTag(Constants.Tag_GameManager).GetComponent<GameManager>();  
     }
 
     // Update is called once per frame
@@ -34,7 +36,8 @@ public class Goal : MonoBehaviour
             if(other.GetComponent<Coin>().CoinType != CoinType.Striker)
             {
                 GameController.Instance.InvokeScoreEvent(other.GetComponent<Coin>().CoinType, 1);
-                Destroy(other.gameObject);
+
+                gameManager.CoinPucked(other.gameObject);
             }
                 
         }

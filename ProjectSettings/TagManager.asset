@@ -8,6 +8,7 @@ TagManager:
   - Faction 1
   - Faction 2
   - Queen
+  - Game Manager
   layers:
   - Default
   - TransparentFX
