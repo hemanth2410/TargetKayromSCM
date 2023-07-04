@@ -10,7 +10,7 @@ public class GameController : MonoBehaviour
 
 
     static GameController instance;
-
+    PostShotRuleEvaluator _evaluator;
     public static GameController Instance { get
         {
             if(instance == null)
@@ -25,6 +25,7 @@ public class GameController : MonoBehaviour
 
     public event Action<CoinType, int> OnFactionScored;
     public event Action ResetPhysicsCoins;
+    public PostShotRuleEvaluator Evaluator { get { return _evaluator; } }
     public void RegisterGameManager(GameManager manager)
     {
         gameManager = manager;
@@ -40,5 +41,10 @@ public class GameController : MonoBehaviour
     public void InvokeResetCoinPhysics()
     {
         ResetPhysicsCoins?.Invoke();
+    }
+
+    internal void RegisterPostShotEvaluator(PostShotRuleEvaluator postShotRuleEvaluator)
+    {
+        _evaluator = postShotRuleEvaluator;
     }
 }

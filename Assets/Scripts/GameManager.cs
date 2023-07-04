@@ -92,7 +92,7 @@ public class GameManager : MonoBehaviour
 
             var ghostGameObject = Instantiate(coinGO, coinGO.transform.position, coinGO.transform.rotation);
 
-            if (ghostGameObject.tag == Constants.Tag_Striker) ghostStriker = ghostGameObject;
+            if (ghostGameObject.tag == Constants.Tag_Striker) { ghostStriker = ghostGameObject; Destroy(ghostStriker.GetComponent<StrikerController>()); }
             ghostGameObject.GetComponent<Renderer>().enabled = false;
             SceneManager.MoveGameObjectToScene(ghostGameObject, simulationScene);
             ghostCoins.Add(ghostGameObject);
@@ -201,10 +201,12 @@ public class GameManager : MonoBehaviour
         var index = carromCoins.IndexOf(coin);
 
         carromCoins.Remove(coin);
-        Destroy(coin);
+        coin.SetActive(false);
+        //Destroy(coin);
 
         var ghost = ghostCoins[index];
         ghostCoins.Remove(ghost);
-        Destroy(ghost);
+        //Destroy(ghost);
+        ghost.SetActive(false);
     }
 }

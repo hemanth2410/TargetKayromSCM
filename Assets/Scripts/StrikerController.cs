@@ -25,14 +25,19 @@ public class StrikerController : MonoBehaviour
 
     }
 
-    private void OnCollisionExit(Collision other)
+    private void OnCollisionEnter(Collision collision)
     {
-        var coin = other.gameObject.GetComponent<Coin>();
+        var coin = collision.gameObject.GetComponent<Coin>();
 
         if (coin != null)
         {
             var report = new ShotReport(this.gameObject, coin.gameObject, Time.time, coin.IsInBaulkLine);
-
+            GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
         }
+    }
+
+    private void OnCollisionExit(Collision other)
+    {
+        
     }
 }

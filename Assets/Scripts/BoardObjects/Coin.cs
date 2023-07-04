@@ -46,6 +46,20 @@ public class Coin : MonoBehaviour
     {
         isInBaulkLine = _isBaulkLine;
     }
+    private void OnCollisionEnter(Collision collision)
+    {
+        
+        if (collision.gameObject.GetComponent<StrikerController>() != null)
+        {
+            ShotReport report = new ShotReport(this.gameObject, collision.gameObject, Time.time, isInBaulkLine);
+            GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+        }
+        else
+        {
+            ShotReport report = new ShotReport(this.gameObject, collision.gameObject, Time.time, false);
+            GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+        }
+    }
 }
 
 

@@ -7,6 +7,12 @@ public class PostShotRuleEvaluator : MonoBehaviour
     List<ShotReport> shots;
     CoinType currentFaction;
     Dictionary<GameObject, List<ShotReport>> shotsDict = new Dictionary<GameObject, List<ShotReport>>();
+
+    private void Start()
+    {
+        GameController.Instance.RegisterPostShotEvaluator(this);
+    }
+
     //public List<ShotReport> Shots { get {  return shots; } }
     /// <summary>
     /// Resets the dictionary, it is adviced to reset dictionary for every shot
@@ -38,8 +44,10 @@ public class PostShotRuleEvaluator : MonoBehaviour
         }
         else
         {
-            List<ShotReport> _newShots = new List<ShotReport>();
-            _newShots.Add(shot);
+            List<ShotReport> _newShots = new List<ShotReport>
+            {
+                shot
+            };
             shotsDict[reportingObject] = _newShots;
         }
     }
