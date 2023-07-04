@@ -42,8 +42,6 @@ public class Goal : MonoBehaviour
 
             if(other.GetComponent<Coin>().CoinType != CoinType.Striker)
             {
-                GameController.Instance.InvokeScoreEvent(coinScript.CoinType, 1);
-
                 gameManager.CoinPucked(other.gameObject);
             }
                 

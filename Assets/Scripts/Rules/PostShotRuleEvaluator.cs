@@ -28,6 +28,8 @@ public class PostShotRuleEvaluator : MonoBehaviour
     public void SetFaction(CoinType faction)
     {
         currentFaction = faction;
+
+        Debug.Log(faction + " to play!");
     }
     /// <summary>
     /// Adds the collision report to the dictionary to process
@@ -86,8 +88,8 @@ public class PostShotRuleEvaluator : MonoBehaviour
 
                                 if (shot.CollidedWith.GetComponent<Coin>().CoinType != currentFaction && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Queen) // Illegal move
                                 {
-                                    score &= false;
-                                    retainTurn &= true;
+                                    score = false;
+                                    retainTurn = true;
                                     overrideTurn = true;
                                     // trigger reset
                                 }

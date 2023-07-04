@@ -46,6 +46,7 @@ public class GameManager : MonoBehaviour
     PostShotRuleEvaluator ruleEvaluator;
     List<GameObject> puckedCoins = new List<GameObject>();
     List<GameObject> puckedGhosts = new List<GameObject>();
+    CoinType currentFaction = CoinType.Faction1;
     // Start is called before the first frame update
     void Start()
     {
@@ -111,22 +112,13 @@ public class GameManager : MonoBehaviour
 
 
         ruleEvaluator = GetComponent<PostShotRuleEvaluator>();
+        ruleEvaluator.SetFaction(CoinType.Faction1);
+
     }
 
     // Update is called once per frame
     void Update()
     {
-        ruleEvaluator.SetFaction(CoinType.Faction1);
-        if (isShotPlaying)
-        {
-            if (coinRigs.All(x => (x.velocity.magnitude <= 0.01f || !x.gameObject.activeSelf)))
-            {
-                evaluateShot();
-                Debug.Log("Shot complete. Evaluating...");
-                isShotPlaying = false;
-            }
-
-        }
 
         Vector3 currentMousePos = Input.mousePosition;
         RaycastHit hit;
@@ -185,7 +177,7 @@ public class GameManager : MonoBehaviour
 
 
                 strikerTransfrom.GetComponent<Rigidbody>().AddForce((dragStartPos - dragEndPos) * StrikeForceMultiplier, ForceMode.Impulse);
-
+                StartCoroutine("checkforShotEnd");
                 ShotRenderer.enabled = false;
                 for (int i = 0; i < carromCoins.Count; i++)
                 {
@@ -205,28 +197,49 @@ public class GameManager : MonoBehaviour
 
     }
 
+    IEnumerator checkforShotEnd()
+    {
+        yield return new WaitForSeconds(0.5f);
+
+        while (isShotPlaying)
+        {
+            if (coinRigs.All(x => (x.velocity.magnitude <= 0.01f || !x.gameObject.activeSelf)))
+            {
+                evaluateShot();
+                Debug.Log("Shot complete. Evaluating...");
+                isShotPlaying = false;
+            }
+            yield return new WaitForFixedUpdate();
+        }
+
+    }
+
     void evaluateShot()
     {
         var eval = ruleEvaluator.EvaluateEvents();
         //item 1 = score
         //item 2 = change turn
-        if (eval.Item1 == true)
-        {
-            foreach (GameObject coin in puckedCoins)
-            {
-                carromCoins.IndexOf(coin);
-                carromCoins.Remove(coin);
-                Destroy(coin);
-            }
-            foreach (GameObject ghost in puckedGhosts)
-            {
-                carromCoins.Remove(ghost);
-                Destroy(ghost);
-            }
 
+        //1,1 == Score and retain turn,\n 1,0 == score, lose turn,\n 0,1 == reset and ose turn,\n 0,0 == no score, lose turn
+
+        //Score and retain turn
+        if (eval.Item1 == true && eval.Item2 == true)
+        {
+            processScore();
             preShotPos.Clear();
         }
-        else
+        //Score and lose turn
+        else if (eval.Item1 == true && eval.Item2 == false)
+        {
+            processScore();
+            preShotPos.Clear();
+
+            if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
+            else currentFaction = CoinType.Faction1;
+
+        }
+        //Resert booard and lose turn
+        else if (eval.Item1 == false && eval.Item2 == true)
         {
             foreach (GameObject coin in puckedCoins)
             {
@@ -239,10 +252,25 @@ public class GameManager : MonoBehaviour
 
             revertBoard();
 
+            if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
+            else currentFaction = CoinType.Faction1;
+
         }
+        //Lose turn
+        else if (eval.Item1 == false && eval.Item2 == false)
+        {
+            if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
+            else currentFaction = CoinType.Faction1;
+
+        }
+
 
         puckedCoins.Clear();
         puckedGhosts.Clear();
+
+
+        ruleEvaluator.SetFaction(currentFaction);
+
 
     }
 
@@ -256,7 +284,24 @@ public class GameManager : MonoBehaviour
 
     }
 
+    private void processScore()
+    {
+        foreach (GameObject coin in puckedCoins)
+        {
+            var i = carromCoins.IndexOf(coin);
+            GameController.Instance.InvokeScoreEvent(coin.GetComponent<Coin>().CoinType, 1);
 
+            coinRigs.RemoveAt(i);
+            carromCoins.Remove(coin);
+            Destroy(coin);
+        }
+        foreach (GameObject ghost in puckedGhosts)
+        {
+            ghostCoins.Remove(ghost);
+            Destroy(ghost);
+        }
+
+    }
 
     //Called from Goal post to indicate which faction coin has been pucked
     public void CoinPucked(GameObject coin)
