@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,11 +7,13 @@ public class Goal : MonoBehaviour
 {
     List<GameObject> coins = new List<GameObject>();
 
-    GameManager gameManager;    
+    GameManager gameManager;
+    PostShotRuleEvaluator ruleEvaluator;
     // Start is called before the first frame update
     void Start()
     {
         gameManager = GameObject.FindGameObjectWithTag(Constants.Tag_GameManager).GetComponent<GameManager>();  
+        ruleEvaluator = gameManager.GetComponent<PostShotRuleEvaluator>();  
     }
 
     // Update is called once per frame
@@ -31,11 +34,15 @@ public class Goal : MonoBehaviour
     {
         if(coins.Contains(other.gameObject))
         {
+            var coinScript = other.GetComponent<Coin>();
+
             coins.Remove(other.gameObject);
-            
+
+            ruleEvaluator.AppendShotReport(this.gameObject, new ShotReport(this.gameObject, other.gameObject, Time.time, coinScript.IsInBaulkLine));
+
             if(other.GetComponent<Coin>().CoinType != CoinType.Striker)
             {
-                GameController.Instance.InvokeScoreEvent(other.GetComponent<Coin>().CoinType, 1);
+                GameController.Instance.InvokeScoreEvent(coinScript.CoinType, 1);
 
                 gameManager.CoinPucked(other.gameObject);
             }
