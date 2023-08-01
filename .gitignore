@@ -32,6 +32,8 @@ bld/
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+[Bb]uilds/
+
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -365,3 +367,13 @@ FodyWeavers.xsd
 /Assets/Scenes/SampleScene.unity
 /UserSettings/Layouts/default-2022.dwlt
 /Assembly-CSharp.csproj
+/UserSettings/EditorUserSettings.asset
+/.plastic/plastic.changes
+/.plastic/plastic.wktree
+*.apk
+/Builds/Carrom.apk
+/Builds/Carrom_BurstDebugInformation_DoNotShip/tempburstlibs/armeabi-v7a/lib_burst_generated.txt
+/Builds/Carrom.apk
+/Builds/Carrom_BurstDebugInformation_DoNotShip/tempburstlibs/armeabi-v7a/lib_burst_generated.txt
+/.plastic/plastic.changes
+/.plastic/plastic.wktree
