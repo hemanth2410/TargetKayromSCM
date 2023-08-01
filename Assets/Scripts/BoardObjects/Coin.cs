@@ -52,12 +52,19 @@ public class Coin : MonoBehaviour
         if (collision.gameObject.GetComponent<StrikerController>() != null)
         {
             ShotReport report = new ShotReport(this.gameObject, collision.gameObject, Time.time, isInBaulkLine);
-            GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+            if(gameObject.scene.name != "SimulatedBoard")
+            {
+                GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+            }
+            
         }
         else
         {
             ShotReport report = new ShotReport(this.gameObject, collision.gameObject, Time.time, false);
-            GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+            if(gameObject.scene.name != "SimulatedBoard")
+            {
+                GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+            }
         }
     }
 }

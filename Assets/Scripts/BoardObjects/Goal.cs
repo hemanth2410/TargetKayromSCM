@@ -34,10 +34,18 @@ public class Goal : MonoBehaviour
     {
         if(coins.Contains(other.gameObject))
         {
+            
             var coinScript = other.GetComponent<Coin>();
+            if(coinScript.CoinType == CoinType.Queen && other.GetComponent<RedCoinHelper>().WaitingForExit)
+            {
+                // coin exited the goal for the first time. Dont destroy. && dont generate collidion event
+                other.GetComponent<RedCoinHelper>().EnableNormalMode();
+                coins.Remove(other.gameObject);
+                return;
+            }
 
             coins.Remove(other.gameObject);
-
+            // we need a smart way to remove coins through rule manager
             ruleEvaluator.AppendShotReport(this.gameObject, new ShotReport(this.gameObject, other.gameObject, Time.time, coinScript.IsInBaulkLine));
 
             if(other.GetComponent<Coin>().CoinType != CoinType.Striker)

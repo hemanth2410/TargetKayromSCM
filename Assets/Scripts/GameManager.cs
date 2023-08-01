@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
+using UnityEngine.Events;
 
 public class GameManager : MonoBehaviour
 {
@@ -17,6 +19,11 @@ public class GameManager : MonoBehaviour
     List<Rigidbody> coinRigs = new List<Rigidbody>();
     public Transform[] StaticPhysicsObjects;
     public LayerMask ignoreLayers;
+    [SerializeField] TextMeshProUGUI m_StatusText;
+    [SerializeField] UnityEvent m_EventToExecuteOnWin;
+    [SerializeField] ParticleSystem m_PowSystem;
+    [SerializeField] bool m_LockRaycast = true;
+    [SerializeField] CoinToPlaceObject m_CoinToPlace;
     public Vector3 StrikerForceDirection { get { return strikerForceDirection; } }
     [Space]
     [Header("Debug Only")]
@@ -27,7 +34,7 @@ public class GameManager : MonoBehaviour
     Transform strikerTransfrom;
     GameObject ghostStriker;
     GameObject queen;
-
+    GameObject coinToPlace;
 
     bool touchIsDragging;
     Vector3 dragStartPos;
@@ -43,10 +50,14 @@ public class GameManager : MonoBehaviour
 
 
     bool isShotPlaying;
+    bool opponentPlacesCoin;
     PostShotRuleEvaluator ruleEvaluator;
     List<GameObject> puckedCoins = new List<GameObject>();
     List<GameObject> puckedGhosts = new List<GameObject>();
     CoinType currentFaction = CoinType.Faction1;
+
+    // Game juice
+    PostRuleExecution postRuleExecution;
     // Start is called before the first frame update
     void Start()
     {
@@ -55,7 +66,7 @@ public class GameManager : MonoBehaviour
         striker = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
         strikerRig = striker.GetComponent<Rigidbody>();
         strikerTransfrom = striker.transform;
-
+        GameController.Instance.PlacementCompleteSuccess += carromManPlaced;
         queen = GameObject.FindGameObjectWithTag(Constants.Tag_Queen);
 
         simulationScene = SceneManager.CreateScene("SimulatedBoard", new CreateSceneParameters(LocalPhysicsMode.Physics3D));
@@ -112,13 +123,33 @@ public class GameManager : MonoBehaviour
 
 
         ruleEvaluator = GetComponent<PostShotRuleEvaluator>();
+        postRuleExecution = GetComponent<PostRuleExecution>();
         ruleEvaluator.SetFaction(CoinType.Faction1);
+        m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
+        GameController.Instance.GameOverEvent += Instance_GameOverEvent;
+        m_LockRaycast = true;
+    }
 
+    private void Instance_GameOverEvent()
+    {
+        // wait for 3 seconds;
+        StartCoroutine(waitForSceneLoad());
+    }
+
+    IEnumerator waitForSceneLoad()
+    {
+        yield return new WaitForSeconds(3);
+        m_EventToExecuteOnWin.Invoke();
     }
 
     // Update is called once per frame
     void Update()
     {
+
+
+
+        if (m_LockRaycast)
+            return;
 
         Vector3 currentMousePos = Input.mousePosition;
         RaycastHit hit;
@@ -152,7 +183,7 @@ public class GameManager : MonoBehaviour
             {
                 ghostCoins[i].transform.position = carromCoins[i].transform.position;
             }
-            GameController.Instance.RuleEvaluator.EvaluateRules();
+            //GameController.Instance.RuleEvaluator.EvaluateRules();
             ghostStriker.transform.position = striker.transform.position;
             ghostStriker.GetComponent<Rigidbody>().velocity = Vector3.zero;
             ghostStriker.GetComponent<Rigidbody>().AddForce((strikerForceDirection) * StrikeForceMultiplier, ForceMode.Impulse);
@@ -183,7 +214,9 @@ public class GameManager : MonoBehaviour
                 {
                     preShotPos.Add(carromCoins[i].transform.position);
                 }
-
+                m_PowSystem.transform.position = striker.transform.position + (Vector3.up * 0.8f);
+                m_PowSystem.Play();
+                m_LockRaycast = true;
             }
 
 
@@ -216,70 +249,166 @@ public class GameManager : MonoBehaviour
 
     void evaluateShot()
     {
-        var eval = ruleEvaluator.EvaluateEvents();
-        //item 1 = score
-        //item 2 = change turn
+        var eval = ruleEvaluator.EvaluateRules();
+        // item 1 = score
+        // item 2 = place carromman
+        // item 3 = extra turn
+        // item 4 = Queen reached goal
+        // item 5 = resetToPast
 
         //1,1 == Score and retain turn,\n 1,0 == score, lose turn,\n 0,1 == reset and ose turn,\n 0,0 == no score, lose turn
-
-        //Score and retain turn
-        if (eval.Item1 == true && eval.Item2 == true)
+        Debug.Log(eval);
+        //No collision reported Or striker collided with Queen and nothing happened
+        if (!eval.Item1 && !eval.Item2 && !eval.Item3 && !eval.Item4 && !eval.Item5)
         {
-            processScore();
-            preShotPos.Clear();
+            // switch factions
+            toggleFaction();
+            postRuleExecution.ExecutePostScoreEventNoScore();
         }
-        //Score and lose turn
-        else if (eval.Item1 == true && eval.Item2 == false)
+        //Striker collided with opponent 
+        if (!eval.Item1 && !eval.Item2 && !eval.Item3 && !eval.Item4 && eval.Item5)
         {
-            processScore();
-            preShotPos.Clear();
-
-            if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
-            else currentFaction = CoinType.Faction1;
-
-        }
-        //Resert booard and lose turn
-        else if (eval.Item1 == false && eval.Item2 == true)
-        {
-            foreach (GameObject coin in puckedCoins)
-            {
-                coin.SetActive(true);
-            }
-            foreach (GameObject ghost in puckedGhosts)
-            {
-                ghost.SetActive(true);
-            }
-
+            // trigger the board to reset to past and switch faction
+            revertCoinPositions();
             revertBoard();
-
-            if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
-            else currentFaction = CoinType.Faction1;
-
+            toggleFaction();
+            postRuleExecution.ExecutePostScoreEventNoScore();
         }
-        //Lose turn
-        else if (eval.Item1 == false && eval.Item2 == false)
+        if (eval.Item1 && !eval.Item2 && eval.Item3 && !eval.Item4 && !eval.Item5)
         {
-            if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
-            else currentFaction = CoinType.Faction1;
-
+            // carromman of same faction went into the goal withoug striker going through it
+            processScore();
+            preShotPos.Clear();
+            postRuleExecution.ExecutePostScoreEvent();
+            // this should retain turn like this.
         }
-
-
+        //Queen reached goalPost but score is not maximum
+        if (!eval.Item1 && !eval.Item2 && !eval.Item3 && eval.Item4 && eval.Item5)
+        {
+            // reset the board and change faction
+            revertCoinPositions();
+            revertBoard();
+            toggleFaction();
+            postRuleExecution.ExecutePostScoreEventNoScore();
+        }
+        // coin is already in the baulk line when collided with striker or carromman and striker reaches the goal at the same time
+        if (!eval.Item1 && eval.Item2 && !eval.Item3 && !eval.Item4 && !eval.Item5)
+        {
+            // give the opponent an ability to place the carrom according to his advantage
+            opponentPlacesCoin = true;
+            toggleFaction();
+            postRuleExecution.ExecutePostScoreEventNoScore();
+        }
+        // queen reached the goal post with maximum score.
+        if (!eval.Item1 && eval.Item2 && !eval.Item3 && eval.Item4 && !eval.Item5)
+        {
+            // time to trigger win condition.
+            // GameController.Instance.InvokeGameOverEvent();
+            // do nothing, Rule Evaluator is handling this case
+        }
+        m_CoinToPlace.Value = eval.Item6;
         puckedCoins.Clear();
         puckedGhosts.Clear();
+        ////Score and retain turn
+        //if (eval.Item1 == true && eval.Item2 == true)
+        //{
+        //    processScore();
+        //    preShotPos.Clear();
+        //    postRuleExecution.ExecutePostScoreEvent();
+        //    /////GameController.Instance.InvokeScoreEvent(currentFaction, 1);
+        //}
+        //Score and lose turn
+        //else if (eval.Item1 == true && eval.Item2 == false)
+        //{
+        //    processScore();
+        //    postRuleExecution.ExecutePostScoreEvent();
+        //    preShotPos.Clear();
+
+        //    if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
+        //    else currentFaction = CoinType.Faction1;
+
+        //}
+        ////Resert booard and lose turn
+        //else if (eval.Item1 == false && eval.Item2 == true)
+        //{
+        //    foreach (GameObject coin in puckedCoins)
+        //    {
+        //        coin.SetActive(true);
+        //    }
+        //    foreach (GameObject ghost in puckedGhosts)
+        //    {
+        //        ghost.SetActive(true);
+        //    }
+
+        //    revertBoard();
+
+        //    if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
+        //    else currentFaction = CoinType.Faction1;
+        //    postRuleExecution.ExecutePostScoreEventNoScore();
+
+        //}
+        ////Lose turn
+        //else if (eval.Item1 == false && eval.Item2 == false)
+        //{
+        //    if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
+        //    else currentFaction = CoinType.Faction1;
+        //    postRuleExecution.ExecutePostScoreEventNoScore();
+        //}
+        if(m_CoinToPlace.Value == null)
+        {
+            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
+        }
+        if(m_CoinToPlace.Value != null && m_CoinToPlace.Value.GetComponent<Coin>().CoinType != CoinType.Striker)
+        {
+            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + "Places the carromman" : PersistantPlayerData.Instance.Player2.PlayerName + "Places the carromman";
+        }
+        //puckedCoins.Clear();
+        //puckedGhosts.Clear();
 
 
-        ruleEvaluator.SetFaction(currentFaction);
+        //ruleEvaluator.SetFaction(currentFaction);
 
 
     }
 
+    void carromManPlaced()
+    {
+        m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
+    }
+    void toggleFaction()
+    {
+        switch (currentFaction)
+        {
+            case CoinType.Faction1:
+                currentFaction = CoinType.Faction2;
+                break;
+            case CoinType.Faction2:
+                currentFaction = CoinType.Faction1;
+                break;
+        }
+        ruleEvaluator.SetFaction(currentFaction);
+    }
+    void revertCoinPositions()
+    {
+        foreach(GameObject coin in puckedCoins)
+        {
+            coin.SetActive(true);
+        }
+        foreach(GameObject ghost in puckedGhosts)
+        {
+            ghost.SetActive(true);
+        }
+    }
     private void revertBoard()
     {
 
         for (int i = 0; i < carromCoins.Count; i++)
         {
             carromCoins[i].transform.position = preShotPos[i];
+            if (carromCoins[i].GetComponent<RedCoinHelper>())
+            {
+                carromCoins[i].GetComponent<RedCoinHelper>().MakeWait();
+            }
         }
 
     }
@@ -322,5 +451,14 @@ public class GameManager : MonoBehaviour
 
         //ghostCoins.Remove(ghost);
         //Destroy(ghost);
+    }
+
+    public void UnlockRaycast()
+    {
+        m_LockRaycast = false;
+    }
+    private void OnDestroy()
+    {
+        SceneManager.UnloadSceneAsync(simulationScene);
     }
 }

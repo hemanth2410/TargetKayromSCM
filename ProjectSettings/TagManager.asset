@@ -9,6 +9,7 @@ TagManager:
   - Faction 2
   - Queen
   - Game Manager
+  - IgnoreCinemachineCOllision
   layers:
   - Default
   - TransparentFX

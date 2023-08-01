@@ -2,15 +2,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+
 public class PostShotRuleEvaluator : MonoBehaviour
 {
     List<ShotReport> shots;
     CoinType currentFaction;
     Dictionary<GameObject, List<ShotReport>> shotsDict = new Dictionary<GameObject, List<ShotReport>>();
     [SerializeField] bool overrideTurn;
+    [SerializeField] NewFactionHolder faction1;
+    [SerializeField] NewFactionHolder faction2;
+    List<GameObject> coins = new List<GameObject>();
+    GameManager gameManager;
     private void Start()
     {
         GameController.Instance.RegisterPostShotEvaluator(this);
+        gameManager = GameObject.FindGameObjectWithTag(Constants.Tag_GameManager).GetComponent<GameManager>();
     }
 
     //public List<ShotReport> Shots { get {  return shots; } }
@@ -53,18 +59,36 @@ public class PostShotRuleEvaluator : MonoBehaviour
             shotsDict[reportingObject] = _newShots;
         }
     }
-    /// <summary>
-    /// This method evaluates the history of shots.
-    /// </summary>
-    /// <returns>bool = should the turn be scored, bool = should faction get the turn, 1,1 == Score and turn,\n 1,0 == score, no turn,\n 0,1 == reset,\n 0,0 == no score, no turn </returns>
-    public (bool,bool) EvaluateEvents()
+    ///  <summary>
+    ///  Evaluates the history of shots and returns a tuple of boolean flags representing the game state after the shot. The flags are:
+    ///  shouldScore: Indicates if the player should score or not(true = score, false = no score).
+    ///  shouldGetTurn: Indicates if the player should get the turn or not(true = get turn, false = no turn).
+    ///  placeCarromMan: Indicates if the player should place a carrom man on the board(true = place carrom man, false = no placement).
+    ///  extraTurn: Indicates if the player gets an extra turn(true = extra turn, false = no extra turn).
+    ///  </summary>
+    ///  <returns></returns>
+    public (bool, bool, bool, bool, bool, GameObject) EvaluateRules()
     {
-        bool score = true;
-        bool retainTurn = true;
-        if(shotsDict.Count == 0)
+        int scoreToEvaluate = 0;
+        bool score = false;
+        bool placeCarromMan = false;
+        bool extraTurn = false;
+        bool queenReachedGoal = false;
+        bool resetToPast = false;
+        GameObject coinToPlace = null;
+        switch (currentFaction)
+        {
+            case CoinType.Faction1:
+                scoreToEvaluate = faction1.getScore();
+                break;
+            case CoinType.Faction2:
+                scoreToEvaluate = faction2.getScore();
+                break;
+        }
+
+        if (shotsDict.Count == 0)
         {
             score = false;
-            retainTurn = false;
         }
         else
         {
@@ -83,15 +107,18 @@ public class PostShotRuleEvaluator : MonoBehaviour
                                 if (shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction) //Legal move
                                 {
                                     score = false;
-                                    retainTurn = false;
                                 }
 
-                                if (shot.CollidedWith.GetComponent<Coin>().CoinType != currentFaction && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Queen) // Illegal move
+                                if (shot.CollidedWith.GetComponent<Coin>().CoinType != currentFaction) // Illegal move
                                 {
                                     score = false;
-                                    retainTurn = true;
-                                    overrideTurn = true;
-                                    // trigger reset
+                                    placeCarromMan = true;
+                                    coinToPlace = shot.CollidedWith.GetComponent<Coin>().gameObject;
+                                }
+                                if (shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Queen)
+                                {
+                                    score = false;
+                                    placeCarromMan = false;
                                 }
                                 else
                                     continue;
@@ -100,6 +127,7 @@ public class PostShotRuleEvaluator : MonoBehaviour
                         }
                     }
                 }
+
                 // Check if Coin of same faction went in? If yes, then make it legal
                 // Check if queen went into goal post when score is not maximum? If yes, Then make it instantly illegal
                 // Check if coin is in baulk like and went into goal post? If yes, Make it instantly illegal
@@ -110,54 +138,136 @@ public class PostShotRuleEvaluator : MonoBehaviour
                     {
                         if (shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Striker)
                         {
-                            // check if coin is already inside the baulk like before hitting it into goal
-                            // check if coin is of same faction type when going into goal post
+                            // Check if the coin is in the baulk line when going into the goal post
                             ShotReport _finalReport = shotsDict[shot.CollidedWith].Last();
                             if (_finalReport.BaulkTrigger)
                             {
-                                score &= false;
-                                retainTurn &= true;
-                                overrideTurn = true;
-                                // this should trigger reset
+                                score = false;
+                                // Check if the last collided object is the striker and the coin is already in the baulk line
+                                if (_finalReport.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Striker)
+                                {
+                                    placeCarromMan = true; // Illegal move, opponent gets the advantage of placing the carrom man
+                                    coinToPlace = _finalReport.CollidedWith.GetComponent<Coin>().gameObject;
+                                }
+                                break;
                             }
                             else if (shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction)
                             {
                                 score = true;
-                                retainTurn = true;
-                                overrideTurn = true;
+                                extraTurn = true;
+                                // remove the coin here
                                 // Perfectly legal move turn + score.
                             }
-                            else if (shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Queen) // we need a score manager for check
+                            else if(shot.CollidedWith.GetComponent<Coin>().CoinType == currentFaction && shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Queen)
                             {
-                                score &= true;
-                                retainTurn &= false;
-                                overrideTurn = true;
-                                // triggers the end of the game
+                                coinToPlace = shot.CollidedWith.GetComponent<Coin>().gameObject;
+                                placeCarromMan = true;
                             }
-                        }
-                        if (shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Striker)
-                        {
-                            score &= false;
-                            retainTurn &= false;
-                            overrideTurn = true;
-                            // No score, no turn
+                            else if (shot.CollidedWith.GetComponent<Coin>().CoinType == CoinType.Queen && !shot.CollidedWith.GetComponent<RedCoinHelper>().WaitingForExit)
+                            {
+                                if (!shot.CollidedWith.GetComponent<RedCoinHelper>().WaitingForExit)
+                                {
+                                    switch (currentFaction)
+                                    {
+                                        case CoinType.Faction1:
+                                            scoreToEvaluate = faction1.getScore();
+                                            break;
+                                        case CoinType.Faction2:
+                                            scoreToEvaluate = faction2.getScore();
+                                            break;
+                                    }
+                                    if (scoreToEvaluate == Constants.MaximumScore)
+                                    {
+                                        score = true;
+                                        // ... (previous code, no changes)
+                                        if (currentFaction == CoinType.Faction1)
+                                        {
+                                            PersistantPlayerData.Instance.Player1.setPlayerState(true);
+                                        }
+                                        else
+                                        {
+                                            PersistantPlayerData.Instance.Player2.setPlayerState(true);
+                                        }
+                                        GameController.Instance.InvokeGameOverEvent();
+                                    }
+                                    else
+                                    {
+                                        score = false;
+                                        queenReachedGoal = true;
+                                        resetToPast = true; // Trigger reset when Queen reaches goal post and score is not maximum.
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
-            if (!overrideTurn)
-            {
-                score = false;
-                retainTurn = false;
+
+                //// Check if the striker goes through the goal frame after a carrom man (coin)
+                //// and set the 'placeCarromMan' flag to true.
+                //if (kvp.Key.GetComponent<Coin>() && kvp.Key.GetComponent<Coin>().CoinType == CoinType.Striker)
+                //{
+                //    bool strikerThroughGoal = false;
+                //    foreach (ShotReport shot in kvp.Value)
+                //    {
+                //        if (shot.CollidedWith.GetComponent<Coin>())
+                //        {
+                //            coinToPlace = shot.CollidedObject.GetComponent<Coin>().gameObject;
+                //            strikerThroughGoal = true;
+                //            continue;
+                //        }
+
+                //        if (strikerThroughGoal && shot.CollidedWith.GetComponent<Goal>())
+                //        {
+                //            placeCarromMan = true;
+                //            break;
+                //        }
+                //    }
+                //}
+
+                //// Check if the striker goes through the goal frame without a carrom man preceding it
+                //// and set the 'extraTurn' flag to true.
+                //if (kvp.Key.GetComponent<Goal>())
+                //{
+                //    foreach (ShotReport shot in kvp.Value)
+                //    {
+                //        if (shot.CollidedWith.GetComponent<Coin>() == null)
+                //        {
+                //            extraTurn = true;
+                //            break;
+                //        }
+                //    }
+                //}
+
+                //// Check if both the striker and carromMan reached the goal post.
+                //if (kvp.Key.GetComponent<Coin>() && kvp.Key.GetComponent<Coin>().CoinType == CoinType.Striker)
+                //{
+                //    foreach (ShotReport shot in kvp.Value)
+                //    {
+                //        if (shot.CollidedWith.GetComponent<Coin>() && shot.CollidedWith.GetComponent<Coin>().CoinType != CoinType.Striker)
+                //        {
+                //            coinToPlace = shot.CollidedWith.GetComponent<Coin>().gameObject;
+                //            placeCarromMan = true;
+                //            break;
+                //        }
+                //    }
+                //}
             }
         }
 
         overrideTurn = false;
         shotsDict.Clear();
-        return (score,retainTurn);
+
+        // Check if Queen reaches goal post and score is not maximum
+        if (queenReachedGoal && scoreToEvaluate != Constants.MaximumScore)
+        {
+            score = false;
+            placeCarromMan = false;
+            extraTurn = false;
+            resetToPast = true;
+        }
+
+        return (score, placeCarromMan, extraTurn, queenReachedGoal, resetToPast, coinToPlace);
     }
-
-
 }
 
 public class ShotReport
@@ -181,7 +291,7 @@ public class ShotReport
     /// <summary>
     /// A flag to see if the coin is already in the baulk line before going into goal post, Only set it to true if Striker hits something in baulk line
     /// </summary>
-    public bool BaulkTrigger { get {  return baulkTrigger; } }
+    public bool BaulkTrigger { get { return baulkTrigger; } }
     /// <summary>
     /// This is a constructor for ShotReport class.
     /// </summary>

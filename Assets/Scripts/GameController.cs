@@ -15,7 +15,7 @@ public class GameController : MonoBehaviour
         {
             if(instance == null)
             {
-                instance = FindObjectOfType<GameController>();
+                instance = FindAnyObjectByType<GameController>();
             }
             return instance;
         } }
@@ -25,6 +25,8 @@ public class GameController : MonoBehaviour
 
     public event Action<CoinType, int> OnFactionScored;
     public event Action ResetPhysicsCoins;
+    public event Action GameOverEvent;
+    public event Action PlacementCompleteSuccess;
     public PostShotRuleEvaluator Evaluator { get { return _evaluator; } }
     public void RegisterGameManager(GameManager manager)
     {
@@ -46,5 +48,14 @@ public class GameController : MonoBehaviour
     internal void RegisterPostShotEvaluator(PostShotRuleEvaluator postShotRuleEvaluator)
     {
         _evaluator = postShotRuleEvaluator;
+    }
+    public void InvokeGameOverEvent()
+    {
+        GameOverEvent?.Invoke();
+    }
+
+    public void InvokePlacementComplete()
+    {
+        PlacementCompleteSuccess?.Invoke();
     }
 }

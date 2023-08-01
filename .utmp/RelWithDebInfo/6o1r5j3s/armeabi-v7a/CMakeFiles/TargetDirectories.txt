@@ -1,0 +1,5 @@
+C:/Users/saihe/TargetKayromSCM/.utmp/RelWithDebInfo/6o1r5j3s/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/saihe/TargetKayromSCM/.utmp/RelWithDebInfo/6o1r5j3s/armeabi-v7a/CMakeFiles/rebuild_cache.dir
+C:/Users/saihe/TargetKayromSCM/.utmp/RelWithDebInfo/6o1r5j3s/armeabi-v7a/FramePacing/CMakeFiles/swappywrapper.dir
+C:/Users/saihe/TargetKayromSCM/.utmp/RelWithDebInfo/6o1r5j3s/armeabi-v7a/FramePacing/CMakeFiles/edit_cache.dir
+C:/Users/saihe/TargetKayromSCM/.utmp/RelWithDebInfo/6o1r5j3s/armeabi-v7a/FramePacing/CMakeFiles/rebuild_cache.dir

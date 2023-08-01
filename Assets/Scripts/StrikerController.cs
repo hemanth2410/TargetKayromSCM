@@ -32,7 +32,10 @@ public class StrikerController : MonoBehaviour
         if (coin != null)
         {
             var report = new ShotReport(this.gameObject, coin.gameObject, Time.time, coin.IsInBaulkLine);
-            GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+            if(gameObject.scene.name != "SimulatedBoard")
+            {
+                GameController.Instance.Evaluator.AppendShotReport(this.gameObject, report);
+            }
         }
     }
 

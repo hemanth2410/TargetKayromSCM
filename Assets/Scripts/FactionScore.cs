@@ -24,6 +24,11 @@ public class FactionScore : MonoBehaviour
         GameController.Instance.OnFactionScored += Instance_OnFactionScored;
     }
 
+    public int getScore()
+    {
+        return score;
+    }
+
     private void Instance_OnFactionScored(CoinType faction, int _score)
     {
         if(faction == m_coinType)

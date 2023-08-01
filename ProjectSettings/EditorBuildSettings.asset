@@ -5,10 +5,17 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
-    path: Assets/Scenes/SampleScene.unity
-    guid: d1c3109bdb54ad54c8a2b2838528e640
   - enabled: 1
-    path: Assets/Scenes/Snipo Env.unity
-    guid: aea62da547faecf418c9d316761400fb
+    path: Assets/Scenes/BootLoader.unity
+    guid: b7ec3ef9744ade14094f0a53795387d4
+  - enabled: 1
+    path: Assets/Scenes/MenuScene.unity
+    guid: 9220a2a59ae3b0a46a3274f8275e6608
+  - enabled: 1
+    path: Assets/Scenes/RuleEvaluation.unity
+    guid: 28fa37f625954734e889f7ab982d84f5
+  - enabled: 1
+    path: Assets/Scenes/WinScene.unity
+    guid: a7a304372c2fc3c44a6e380a36d7ef39
   m_configObjects: {}
+  m_UseUCBPForAssetBundles: 0

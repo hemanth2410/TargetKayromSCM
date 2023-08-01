@@ -10,5 +10,6 @@ public static class Constants
     public const string Tag_Queen = "Queen";
     public const string Tag_GameManager = "Game Manager";
 
+    public const int MaximumScore = 6;
 
 }
